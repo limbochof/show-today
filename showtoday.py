@@ -4,7 +4,8 @@ from aiogram.filters import Command
 import asyncio
 
 # 🔐 Токен бота
-TOKEN = "7656713395:AAGSb_IB6U4EBWhAeohk4WJOwXMVZ3Zjs-w"
+import os
+TOKEN = os.getenv("TOKEN")
 
 # 👥 Пользователи, которых можно упоминать и которые могут "открывать"
 GATE_RESPONDERS = ["MadiyarYntykbay", "Tinbrawl", "limbachof"]
