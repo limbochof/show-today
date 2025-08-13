@@ -22,6 +22,8 @@ async def request_gate(message: Message):
     gate_location = "с Айтиева"
     tagged_users = " ".join([f"@{u}" for u in GATE_RESPONDERS])
 
+    await message.delete()
+    
     text = (
         f"🔐 Запрос на открытие ворот {gate_location} от @{requester}.\n\n"
         f"{tagged_users}\n\n"
@@ -41,6 +43,8 @@ async def request_barrier(message: Message):
     requester = message.from_user.username or message.from_user.full_name
     tagged_users = " ".join([f"@{u}" for u in OPEN_RESPONDERS])
 
+    await message.delete()
+    
     text = (
         f"🛡 Запрос на открытие шлагбаума от @{requester}.\n\n"
         f"{tagged_users}\n\n"
