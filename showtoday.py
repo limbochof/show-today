@@ -8,7 +8,7 @@ import os
 TOKEN = os.getenv("TOKEN")
 
 # 👥 Пользователи, которых можно упоминать и которые могут "открывать"
-GATE_RESPONDERS = ["MadiyarYntykbay", "Tinbrawl", ]
+GATE_RESPONDERS = ["MadiyarYn", "Tinbrawl", ]
 OPEN_RESPONDERS = ["teemudzhinn", "Garmaevvlad", "danayergali"]
 
 bot = Bot(token=TOKEN)
