@@ -1,74 +1,111 @@
-import os
-import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import BotCommand
+from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 from aiogram.filters import Command
-from zadarma_api import ZadarmaAPI
+import asyncio
 
-# 🔐 Токен Telegram-бота
+# 🔐 Токен бота
+import os
 TOKEN = os.getenv("TOKEN")
 
-# 🔐 Данные Zadarma
-ZD_API_KEY = os.getenv("c41558294371a471c163")
-ZD_API_SECRET = os.getenv("02974ac60eaee64523c1")
-
-# 📞 Номера
-BARRIER_NUMBER = "+77001111111"  # номер для шлагбаума
-GATE_NUMBER = "+77762268953"     # номер для ворот
-CALL_FROM = "+77009999999"       # твой номер/SIP от Zadarma
+# 👥 Пользователи, которых можно упоминать и которые могут "открывать"
+GATE_RESPONDERS = ["MadiyarYn", "Tinbrawl", ]
+OPEN_RESPONDERS = ["teemudzhinn", "Garmaevvlad", "danayergali"]
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
-zd_api = ZadarmaAPI(ZD_API_KEY, ZD_API_SECRET)
 
 
-# 📞 Функция звонка через Zadarma
-async def zadarma_call(to_number: str):
-    try:
-        response = zd_api.call("/request/callback/", {
-            "from": CALL_FROM,
-            "to": to_number
-        })
-        print(f"📞 Звонок на {to_number}: {response}")
-    except Exception as e:
-        print(f"❌ Ошибка звонка на {to_number}: {e}")
-
-
-# 🚪 Команда для ворот
+# 📥 Команда запроса на открытие ворот (Айтиева)
 @dp.message(Command("gate"))
-async def request_gate(message: types.Message):
+async def request_gate(message: Message):
     requester = message.from_user.username or message.from_user.full_name
+    gate_location = "с Айтиева"
+    tagged_users = " ".join([f"@{u}" for u in GATE_RESPONDERS])
+
     await message.delete()
+    
+    text = (
+        f"🔐 Запрос на открытие ворот {gate_location} от @{requester}.\n\n"
+        f"{tagged_users}\n\n"
+        
+    )
 
-    # Звонок на номер ворот
-    await zadarma_call(GATE_NUMBER)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Не Открыто", callback_data="gate_opened")]
+    ])
 
-    await message.answer(f"🚪 Ворота открыты. Открыл @{requester}")
+    await message.answer(text, reply_markup=keyboard)
 
 
-# 🛡 Команда для шлагбаума
+# 📥 Команда запроса на открытие шлагбаума
 @dp.message(Command("open"))
-async def request_barrier(message: types.Message):
+async def request_barrier(message: Message):
     requester = message.from_user.username or message.from_user.full_name
+    tagged_users = " ".join([f"@{u}" for u in OPEN_RESPONDERS])
+
     await message.delete()
+    
+    text = (
+        f"🛡 Запрос на открытие шлагбаума от @{requester}.\n\n"
+        f"{tagged_users}\n\n"
+        
+    )
 
-    # Звонок на номер шлагбаума
-    await zadarma_call(BARRIER_NUMBER)
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="❌ Не Открыто", callback_data="barrier_opened")]
+    ])
 
-    await message.answer(f"🛡 Шлагбаум открыт. Открыл @{requester}")
+    await message.answer(text, reply_markup=keyboard)
 
 
-# 📋 Установка команд
+# 🟢 Обработка кнопки "Открыто" — для ворот
+@dp.callback_query(lambda c: c.data == "gate_opened")
+async def handle_gate_opened(callback: types.CallbackQuery):
+    opener = callback.from_user.username or callback.from_user.full_name
+    if opener not in GATE_RESPONDERS:
+        await callback.answer("⛔ У вас нет прав открывать ворота", show_alert=True)
+        return
+
+    # Изменение текста на кнопке, сообщение не трогаем
+    new_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"✅ Открыл @{opener}", callback_data="noop")]
+    ])
+    await callback.message.edit_reply_markup(reply_markup=new_keyboard)
+    await callback.answer("Готово!")
+
+
+# 🟢 Обработка кнопки "Открыто" — для шлагбаума
+@dp.callback_query(lambda c: c.data == "barrier_opened")
+async def handle_barrier_opened(callback: types.CallbackQuery):
+    opener = callback.from_user.username or callback.from_user.full_name
+    if opener not in OPEN_RESPONDERS:
+        await callback.answer("⛔ У вас нет прав открывать шлагбаум", show_alert=True)
+        return
+
+    new_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"✅ Открыл @{opener}", callback_data="noop")]
+    ])
+    await callback.message.edit_reply_markup(reply_markup=new_keyboard)
+    await callback.answer("Готово!")
+
+
+# 🔒 Заглушка на дальнейшее нажатие (чтобы кнопка ничего не делала)
+@dp.callback_query(lambda c: c.data == "noop")
+async def noop(callback: types.CallbackQuery):
+    await callback.answer("Уже открыто ✅", show_alert=True)
+
+
+# 📋 Установка команд с подсказками
 async def set_commands(bot: Bot):
     commands = [
         BotCommand(command="start", description="🏠 Главное меню"),
-        BotCommand(command="open", description="🛡 Открыть шлагбаум"),
-        BotCommand(command="gate", description="🚪 Открыть ворота"),
+        BotCommand(command="open", description="🛡 Запрос на открытие шлагбаума"),
+        BotCommand(command="gate", description="🚪 Запрос на открытие ворот с Айтиева"),
     ]
     await bot.set_my_commands(commands)
 
 
-# ▶️ Запуск
+# ▶️ Запуск бота
 async def main():
     await set_commands(bot)
     await dp.start_polling(bot)
